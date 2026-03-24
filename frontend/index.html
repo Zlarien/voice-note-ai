@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Note AI - Prise de note vocale avec IA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .main-content {
+            padding: 30px;
+        }
+        
+        .voice-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(to right, #ff9a9e 0%, #fad0c4 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(to right, #a8edea 0%, #fed6e3 100%);
+            color: #333;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(to right, #ff7e5f 0%, #feb47b 100%);
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn i {
+            font-size: 1.3rem;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .status.listening {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        
+        .status.processing {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            display: block;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        
+        .notes-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+        
+        .notes-section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .note-item {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border-left: 4px solid #4facfe;
+        }
+        
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        
+        .note-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1.2rem;
+        }
+        
+        .note-timestamp {
+            font-size: 0.9rem;
+            color: #95a5a6;
+        }
+        
+        .note-content {
+            color: #34495e;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .ai-suggestions {
+            background: #e8f4fd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .ai-suggestions h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .ai-suggestions ul {
+            padding-left: 20px;
+        }
+        
+        .ai-suggestions li {
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        
+        .project-type-selector {
+            margin: 20px 0;
+        }
+        
+        .project-type-selector label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: block;
+            color: #2c3e50;
+        }
+        
+        .project-type-selector select {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            width: 100%;
+            background: white;
+        }
+        
+        .agent-status {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .agent-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+        
+        .agent-card.active {
+            border-color: #4facfe;
+            background: #e8f4fd;
+        }
+        
+        .agent-card h4 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .agent-card .status-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-dot.active {
+            background: #28a745;
+        }
+        
+        .status-dot.working {
+            background: #ffc107;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .status-dot.error {
+            background: #dc3545;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+            border-top: 1px solid #eee;
+            margin-top: 30px;
+        }
+        
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .voice-controls {
+                gap: 15px;
+            }
+            
+            .btn {
+                padding: 12px 20px;
+                font-size: 1rem;
+            }
+        }
+        
+        .loading-dots {
+            display: inline-block;
+        }
+        
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60% { content: '...'; }
+            80%, 100% { content: ''; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 Voice Note AI</h1>
+            <p>Prise de note vocale avec intelligence artificielle multi-agents</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="voice-controls">
+                <button id="startBtn" class="btn btn-primary">
+                    <i class="fas fa-microphone"></i>
+                    Démarrer l'enregistrement
+                </button>
+                
+                <button id="stopBtn" class="btn btn-secondary" disabled>
+                    <i class="fas fa-stop"></i>
+                    Arrêter l'enregistrement
+                </button>
+                
+                <button id="clearBtn" class="btn btn-danger">
+                    <i class="fas fa-trash"></i>
+                    Effacer les notes
+                </button>
+            </div>
+            
+            <div id="status" class="status">
+                <span id="statusText">Écoute en cours...</span>
+                <span class="loading-dots"></span>
+            </div>
+            
+            <div class="project-type-selector">
+                <label for="projectType">Type de projet :</label>
+                <select id="projectType">
+                    <option value="general">Note générale</option>
+                    <option value="youtube">Vidéo YouTube</option>
+                    <option value="game">Jeu vidéo</option>
+                    <option value="business">Projet business</option>
+                    <option value="creative">Projet créatif</option>
+                </select>
+            </div>
+            
+            <div class="agent-status" id="agentStatus">
+                <!-- Les agents seront ajoutés dynamiquement -->
+            </div>
+            
+            <div class="notes-section">
+                <h2><i class="fas fa-sticky-note"></i> Mes notes</h2>
+                <div id="notesContainer">
+                    <!-- Les notes seront ajoutées dynamiquement -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Voice Note AI - Créé avec ❤️ pour améliorer votre productivité vocale</p>
+        </div>
+    </div>
+
+    <!-- Font Awesome pour les icônes -->
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    
+    <script>
+        // État de l'application
+        let recognition;
+        let isListening = false;
+        let notes = [];
+        let agents = {};
+        let currentNoteId = null;
+        
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSpeechRecognition();
+            initializeAgents();
+            loadNotes();
+            updateUI();
+        });
+        
+        // Initialisation de la reconnaissance vocale
+        function initializeSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                showStatus('Votre navigateur ne supporte pas la reconnaissance vocale. Utilisez Chrome ou Edge.', 'error');
+                return;
+            }
+            
+            recognition = new SpeechRecognition();
+            recognition.lang = 'fr-FR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+            
+            recognition.onstart = () => {
+                isListening = true;
+                updateButtonStates();
+                showStatus('Écoute en cours... Parlez maintenant', 'listening');
+                activateAllAgents();
+            };
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                handleVoiceInput(transcript);
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Erreur de reconnaissance vocale:', event.error);
+                showStatus(`Erreur de reconnaissance: ${event.error}`, 'error');
+            };
+            
+            recognition.onend = () => {
+                isListening = false;
+                updateButtonStates();
+                showStatus('Écoute terminée', 'processing');
+                setTimeout(() => {
+                    hideStatus();
+                }, 1500);
+                deactivateAllAgents();
+            };
+        }
+        
+        // Gestion des boutons
+        document.getElementById('startBtn').addEventListener('click', startListening);
+        document.getElementById('stopBtn').addEventListener('click', stopListening);
+        document.getElementById('clearBtn').addEventListener('click', clearNotes);
+        
+        function startListening() {
+            if (!isListening && recognition) {
+                try {
+                    recognition.start();
+                } catch (error) {
+                    showStatus(`Impossible de démarrer l'enregistrement: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        function stopListening() {
+            if (isListening && recognition) {
+                recognition.stop();
+            }
+        }
+        
+        function clearNotes() {
+            if (confirm('Voulez-vous vraiment supprimer toutes les notes ?')) {
+                notes = [];
+                currentNoteId = null;
+                saveNotes();
+                updateUI();
+                showStatus('Toutes les notes ont été supprimées', 'processing');
+                setTimeout(() => {
+                    hideStatus();
+                }, 1500);
+            }
+        }
+        
+        function updateButtonStates() {
+            document.getElementById('startBtn').disabled = isListening;
+            document.getElementById('stopBtn').disabled = !isListening;
+        }
+        
+        function showStatus(message, type = 'processing') {
+            const statusEl = document.getElementById('status');
+            const statusTextEl = document.getElementById('statusText');
+            
+            statusEl.className = `status ${type}`;
+            statusTextEl.textContent = message;
+            statusEl.style.display = 'block';
+        }
+        
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+        
+        // Gestion de l'entrée vocale
+        function handleVoiceInput(transcript) {
+            showStatus('Traitement de votre voix...', 'processing');
+            
+            // Simuler un délai de traitement
+            setTimeout(async () => {
+                // Générer un ID pour la note
+                const noteId = Date.now().toString();
+                
+                // Créer la note de base
+                const newNote = {
+                    id: noteId,
+                    title: generateTitleFromText(transcript),
+                    content: transcript,
+                    timestamp: new Date().toISOString(),
+                    projectType: document.getElementById('projectType').value,
+                    aiSuggestions: []
+                };
+                
+                // Obtenir les suggestions de l'IA basée sur le type de projet
+                newNote.aiSuggestions = await getAISuggestions(transcript, newNote.projectType);
+                
+                // Ajouter la note
+                notes.push(newNote);
+                currentNoteId = noteId;
+                
+                // Sauvegarder et mettre à jour l'interface
+                saveNotes();
+                updateUI();
+                
+                showStatus('Note enregistrée avec succès !', 'processing');
+                setTimeout(() => {
+                    hideStatus();
+                }, 1500);
+            }, 1000);
+        }
+        
+        // Générer un titre à partir du texte
+        function generateTitleFromText(text) {
+            // Prendre les premiers mots ou une phrase courte
+            const words = text.trim().split(/\s+/);
+            if (words.length <= 6) {
+                return text.trim();
+            }
+            return words.slice(0, 6).join(' ') + '...';
+        }
+        
+        // Obtenir les suggestions de l'IA
+        async function getAISuggestions(text, projectType) {
+            // Simuler un appel à l'IA
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Suggestions basées sur le type de projet
+            const suggestionsMap = {
+                general: [
+                    "Organisez vos idées en points clés",
+                    "Ajoutez des exemples concrets pour illustrer vos propos",
+                    "Structurez votre note avec des titres et sous-titres"
+                ],
+                youtube: [
+                    "Créez un accroche forte pour les 15 premières secondes",
+                    "Planifiez un appel à l'action clair à la fin de votre vidéo",
+                    "Incluez des éléments visuels pertinents (B-roll, graphiques)",
+                    "Optimisez votre titre et description pour le SEO"
+                ],
+                game: [
+                    "Définissez clairement les mécaniques de jeu principales",
+                    "Pensez à l'expérience utilisateur et à l'accessibilité",
+                    "Établissez un calendrier de développement réaliste",
+                    "Prévoyez des phases de test et de feedback"
+                ],
+                business: [
+                    "Identifiez votre proposition de valeur unique",
+                    "Analysez votre marché cible et vos concurrents",
+                    "Établissez des objectifs SMART et mesurables",
+                    "Prévoyez un plan financier préliminaire"
+                ],
+                creative: [
+                    "Explorez différentes variantes de votre concept",
+                    "Pensez aux émotions que vous voulez évoquer",
+                    "Considérez les contraintes techniques ou matérielles",
+                    "Documentez votre processus créatif pour référence future"
+                ]
+            };
+            
+            return suggestionsMap[projectType] || suggestionsMap.general;
+        }
+        
+        // Gestion des agents IA
+        function initializeAgents() {
+            agents = {
+                researcher: { name: 'Chercheur', status: 'idle', description: 'Trouve des informations pertinentes' },
+                planner: { name: 'Planificateur', status: 'idle', description: 'Organise et structure les idées' },
+                critic: { name: 'Critique', status: 'idle', description: 'Identifie les points d\'amélioration' },
+                creator: { name: 'Créateur', status: 'idle', description: 'Génère des propositions créatives' },
+                executor: { name: 'Exécuteur', status: 'idle', description: 'Transforme les idées en actions concrètes' }
+            };
+            
+            updateAgentStatus();
+        }
+        
+        function activateAllAgents() {
+            Object.keys(agents).forEach(key => {
+                agents[key].status = 'working';
+            });
+            updateAgentStatus();
+        }
+        
+        function deactivateAllAgents() {
+            Object.keys(agents).forEach(key => {
+                agents[key].status = 'idle';
+            });
+            updateAgentStatus();
+        }
+        
+        function updateAgentStatus() {
+            const container = document.getElementById('agentStatus');
+            container.innerHTML = '';
+            
+            Object.keys(agents).forEach(key => {
+                const agent = agents[key];
+                const agentEl = document.createElement('div');
+                agentEl.className = `agent-card ${agent.status === 'working' ? 'active' : ''}`;
+                agentEl.innerHTML = `
+                    <div>
+                        <span class="status-dot ${agent.status === 'working' ? 'working' : agent.status === 'idle' ? '' : 'error'}"></span>
+                        <strong>${agent.name}</strong>
+                    </div>
+                    <small>${agent.description}</small>
+                `;
+                container.appendChild(agentEl);
+            });
+        }
+        
+        // Sauvegarde et chargement des notes
+        function saveNotes() {
+            try {
+                localStorage.setItem('voiceNotes', JSON.stringify(notes));
+            } catch (error) {
+                console.error('Erreur lors de la sauvegarde:', error);
+            }
+        }
+        
+        function loadNotes() {
+            try {
+                const savedNotes = localStorage.getItem('voiceNotes');
+                if (savedNotes) {
+                    notes = JSON.parse(savedNotes);
+                }
+            } catch (error) {
+                console.error('Erreur lors du chargement:', error);
+                notes = [];
+            }
+        }
+        
+        // Mise à jour de l'interface
+        function updateUI() {
+            const container = document.getElementById('notesContainer');
+            
+            if (notes.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>Aucune note enregistrée pour le moment. Cliquez sur "Démarrer l'enregistrement" pour commencer !</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Trier les notes par date (plus récentes en premier)
+            const sortedNotes = [...notes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            container.innerHTML = sortedNotes.map(note => createNoteElement(note)).join('');
+        }
+        
+        function createNoteElement(note) {
+            const date = new Date(note.timestamp);
+            const formattedDate = date.toLocaleDateString('fr-FR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            return `
+                <div class="note-item">
+                    <div class="note-header">
+                        <div class="note-title">${note.title}</div>
+                        <div class="note-timestamp">${formattedDate}</div>
+                    </div>
+                    <div class="note-content">${note.content}</div>
+                    ${note.aiSuggestions.length > 0 ? `
+                        <div class="ai-suggestions">
+                            <h3><i class="fas fa-lightbulb"></i> Suggestions de l'IA</h3>
+                            <ul>
+                                ${note.aiSuggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
