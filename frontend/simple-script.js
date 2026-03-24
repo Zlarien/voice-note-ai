@@ -1,9 +1,12 @@
-// Simplified Voice Note AI Frontend - Demo Version
+// Simplified Voice Note AI Frontend - Demo Version with Continuous Listening
 
 // State
 let recognition;
 let isListening = false;
+let isContinuous = false;
 let notes = [];
+let continuousTimeout = null;
+let continuousTranscript = '';
 
 // Initialize when DOM loads
 document.addEventListener('DOMContentLoaded', () => {
@@ -23,18 +26,54 @@ function initializeSpeechRecognition() {
     
     recognition = new SpeechRecognition();
     recognition.lang = 'fr-FR';
-    recognition.interimResults = false;
+    recognition.interimResults = true; // We need interim results for continuous mode
     recognition.maxAlternatives = 1;
     
     recognition.onstart = () => {
         isListening = true;
         updateButtonStates();
-        showStatus('Écoute en cours... Parlez maintenant', 'listening');
+        if (isContinuous) {
+            showStatus('Écoute continue active... Parlez naturellement', 'listening');
+        } else {
+            showStatus('Écoute en cours... Parlez maintenant', 'listening');
+        }
     };
     
     recognition.onresult = async (event) => {
-        const transcript = event.results[0][0].transcript;
-        await handleVoiceInput(transcript);
+        // Get the latest transcript
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                transcript += event.results[i][0].transcript;
+            } else {
+                transcript += event.results[i][0].transcript;
+            }
+        }
+        
+        if (isContinuous) {
+            // In continuous mode, update live transcript and reset timer
+            continuousTranscript = transcript;
+            // Update a live preview element if exists
+            updateLivePreview(transcript);
+            
+            // Reset the timeout
+            if (continuousTimeout !== null) {
+                clearTimeout(continuousTimeout);
+            }
+            // Set timeout to process after 2 seconds of silence
+            continuousTimeout = setTimeout(async () => {
+                if (continuousTranscript.trim() !== '') {
+                    await handleVoiceInput(continuousTranscript);
+                    continuousTranscript = '';
+                    updateLivePreview('');
+                }
+            }, 2000); // 2 seconds of silence
+        } else {
+            // In normal mode, we only process final results
+            if (event.results[0].isFinal) {
+                await handleVoiceInput(transcript);
+            }
+        }
     };
     
     recognition.onerror = (event) => {
@@ -45,10 +84,25 @@ function initializeSpeechRecognition() {
     recognition.onend = () => {
         isListening = false;
         updateButtonStates();
-        showStatus('Écoute terminée', 'processing');
-        setTimeout(() => {
-            hideStatus();
-        }, 1500);
+        if (isContinuous) {
+            // In continuous mode, we automatically restart after a brief pause to keep listening
+            // but we don't want to spam, so we wait a bit
+            setTimeout(() => {
+                if (isContinuous && !isListening) {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error('Failed to restart continuous recognition:', e);
+                    }
+                }
+            }, 1000);
+            showStatus('Écoute en pause... Redémarrage bientôt', 'processing');
+        } else {
+            showStatus('Écoute terminée', 'processing');
+            setTimeout(() => {
+                hideStatus();
+            }, 1500);
+        }
     };
 }
 
@@ -56,10 +110,17 @@ function initializeSpeechRecognition() {
 document.getElementById('startBtn').addEventListener('click', startListening);
 document.getElementById('stopBtn').addEventListener('click', stopListening);
 document.getElementById('clearBtn').addEventListener('click', clearNotes);
+document.getElementById('continuousToggle').addEventListener('click', toggleContinuous);
 
 async function startListening() {
     if (!isListening && recognition) {
         try {
+            // If continuous mode is on, we set continuous property
+            if (isContinuous) {
+                recognition.continuous = true;
+            } else {
+                recognition.continuous = false;
+            }
             recognition.start();
         } catch (error) {
             showStatus(`Impossible de démarrer l'enregistrement: ${error.message}`, 'error');
@@ -70,6 +131,9 @@ async function startListening() {
 function stopListening() {
     if (isListening && recognition) {
         recognition.stop();
+        // If we were in continuous mode, we want to stop completely
+        isContinuous = false;
+        updateContinuousButton();
     }
 }
 
@@ -82,6 +146,37 @@ async function clearNotes() {
         setTimeout(() => {
             hideStatus();
         }, 1500);
+    }
+}
+
+function toggleContinuous() {
+    isContinuous = !isContinuous;
+    updateContinuousButton();
+    
+    if (isContinuous && isListening) {
+        // If currently listening, restart with continuous mode
+        stopListening();
+        startListening();
+    } else if (!isContinuous && isListening) {
+        // Switching off continuous while listening: we'll stop and restart in normal mode
+        stopListening();
+        startListening();
+    }
+    
+    showStatus(`Écoute ${isContinuous ? 'continue' : 'normale'} activée`, 'processing');
+    setTimeout(() => {
+        hideStatus();
+    }, 1500);
+}
+
+function updateContinuousButton() {
+    const btn = document.getElementById('continuousToggle');
+    if (isContinuous) {
+        btn.classList.add('active');
+        btn.innerHTML = '<i class="fas fa-pause"></i> Écoute normale';
+    } else {
+        btn.classList.remove('active');
+        btn.innerHTML = '<i class="fas fa-redo"></i> Écoute continue';
     }
 }
 
@@ -103,7 +198,28 @@ function hideStatus() {
     document.getElementById('status').style.display = 'none';
 }
 
-// Handle voice input
+// Live preview for continuous mode
+function updateLivePreview(transcript) {
+    let previewEl = document.getElementById('live-preview');
+    if (!previewEl) {
+        previewEl = document.createElement('div');
+        previewEl.id = 'live-preview';
+        previewEl.style.cssText = `
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-style: italic;
+            color: #666;
+            border: 1px dashed #ddd;
+        `;
+        const notesContainer = document.getElementById('notesContainer');
+        notesContainer.parentNode.insertBefore(previewEl, notesContainer);
+    }
+    previewEl.textContent = transcript || 'En attente de parole...';
+}
+
+// Handle voice input (same as before)
 async function handleVoiceInput(transcript) {
     showStatus('Traitement de votre voix...', 'processing');
     
