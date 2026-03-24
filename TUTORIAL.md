@@ -44,6 +44,13 @@
 4. Select the appropriate project type from the dropdown (General, YouTube Video, Video Game, Business, Creative)
 5. Your note will appear in the list below
 
+### Using Continuous Listening Mode
+1. Click the "Écoute continue" button (refresh icon) to activate continuous listening
+2. The indicator will change to show continuous mode is active
+3. Speak naturally - the system will listen continuously and create notes when it detects pauses in your speech (2 seconds of silence)
+4. Click the button again to switch back to normal mode (tap-to-record)
+5. Continuous mode is designed to avoid wasting credits by only processing after pauses
+
 ### Using AI Agents for Analysis
 1. After recording a note, click the "Analyser avec les agents" button (robot icon) on the note card
 2. Wait for the analysis to complete (shows "Analyse en cours avec les agents IA...")
@@ -53,6 +60,19 @@
 4. You can either:
    - Click "Appliquer les suggestions" to update your note with the improved content
    - Click "Fermer" to close the modal without changes
+
+### Using AI Commands on Notes
+Each note now has a command bar where you can give specific instructions to the AI:
+1. Type commands like:
+   - "ajoute les prix" or "add prices" - to add price information to product lists
+   - "détail l'idée" or "elaborate the idea" - to develop and expand on your note
+   - "cherche des informations" or "search for information" - to research and add relevant data
+   - "améliore cette note" or "improve this note" - for general improvement suggestions
+2. Press Enter or click the "Exécuter" button
+3. The AI will process your command and either:
+   - Execute it directly if the request is clear
+   - Ask for clarification if the request is ambiguous
+4. You can continue refining with follow-up commands
 
 ### Listening to Your Notes
 1. Click the "Écouter la note" button (volume icon) on any note card
@@ -94,17 +114,24 @@
 - Check the backend logs for error messages
 - Ensure you have internet access (required for OpenAI API)
 
+### Continuous listening not working
+- Make sure you've clicked the "Écoute continue" button to activate the mode
+- The system requires microphone permissions to be granted
+- In continuous mode, notes are created after pauses in speech (2 seconds of silence)
+
 ## How It Works
 
 ### Voice Recognition
 - Uses the browser's built-in Web Speech API for converting speech to text
 - Optimized for French language (fr-FR)
+- Continuous mode uses interim results with smart pause detection to avoid excessive processing
 
 ### AI Processing
 - Transcription: OpenAI Whisper model for high-accuracy speech-to-text
 - Analysis: GPT-4o-mini for contextual understanding and suggestions
 - Multi-Agent System: Five specialized AI agents work in parallel to provide diverse perspectives
 - Text-to-Speech: OpenAI TTS for natural-sounding audio output
+- Command Processing: Specialized handlers for price addition, elaboration, research, and general commands
 
 ### Data Privacy
 - Voice recordings are processed in real-time and not stored

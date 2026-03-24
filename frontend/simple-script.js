@@ -300,6 +300,209 @@ async function generateAISuggestions(text, projectType) {
     return suggestionsMap[projectType] || suggestionsMap.general;
 }
 
+// Process AI command on a specific note via backend API
+async function processAICommand(noteId, command) {
+    // Find the note
+    const note = notes.find(n => n.id === noteId);
+    if (!note) {
+        showStatus('Note introuvable', 'error');
+        return;
+    }
+    
+    showStatus(`Traitement de la commande: "${command}"...`, 'processing');
+    
+    try {
+        // Call the backend API to process the command
+        const response = await fetch(`${API_BASE_URL}/notes/${noteId}/command`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ command: command })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        // Update the note with the returned content
+        if (result.updated_content !== undefined) {
+            // Find the note in our local array and update it
+            const noteIndex = notes.findIndex(n => n.id === noteId);
+            if (noteIndex !== -1) {
+                notes[noteIndex].content = result.updated_content;
+                // Note: We are not updating title or aiSuggestions from the backend for simplicity
+                // In a more advanced version, we would update those too
+            }
+        }
+        
+        // Save and update UI
+        await saveNotes();
+        updateUI();
+        
+        // Show suggestions if any
+        if (result.suggestions && result.suggestions.length > 0) {
+            // We could show these in a modal or temporary UI, but for now we'll just log them
+            console.log('AI Suggestions:', result.suggestions);
+            // Optionally, show a temporary status with the first suggestion
+            if (result.suggestions[0]) {
+                showStatus(`Suggestion: ${result.suggestions[0]}`, 'processing');
+                setTimeout(() => {
+                    // After showing suggestion, go back to normal status
+                    showStatus('Commande exécutée avec succès !', 'processing');
+                }, 2000);
+            }
+        } else {
+            showStatus('Commande exécutée avec succès !', 'processing');
+        }
+        
+        setTimeout(() => {
+            hideStatus();
+        }, 1500);
+    } catch (error) {
+        console.error('Error processing AI command:', error);
+        showStatus(`Erreur lors du traitement: ${error.message}`, 'error');
+        setTimeout(() => {
+            hideStatus();
+        }, 2000);
+    }
+}
+
+// Handle price-related commands
+async function handlePriceCommand(note, command) {
+    // In a real implementation, this would use AI to extract product info and add prices
+    // For demo, we'll simulate the behavior
+    
+    showStatus('Analyse de la demande de prix...', 'processing');
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Check if the command is clear enough
+    if (command.toLowerCase().includes('produit d\'hygiène') || 
+        command.toLowerCase().includes('hygiène produit') ||
+        command.toLowerCase().includes('produits d\'hygiène')) {
+        // Clear enough to proceed
+        const updatedContent = note.content + '\n\n[MISE À JOUR PRIX]\n' +
+            '- Savon: 2,50€\n' +
+            '- Shampooing: 4,80€\n' +
+            '- Dentifrice: 3,20€\n' +
+            '- Déodorant: 3,90€\n' +
+            '- Papier toilette: 2,80€\n' +
+            '*Prix indicatifs basée sur la moyenne du marché*';
+        
+        return {
+            content: updatedContent,
+            aiSuggestions: [
+                "Vérifiez les prix actuels en magasin pour plus de précision",
+                "Considérez les marques génériques pour économiser",
+                "Regardez les promotions en cours"
+            ]
+        };
+    } else {
+        // Command is unclear, ask for clarification
+        return {
+            content: note.content,
+            aiSuggestions: [
+                "Pour ajouter des prix, pourriez-vous préciser :",
+                "1. Quels types de produits d'hygiène exactement ?",
+                "2. Voulez-vous des prix spécifiques ou des fourchettes ?",
+                "3. Souhaitez-vous inclure des liens vers des produits en ligne ?"
+            ]
+        };
+    }
+}
+
+// Handle detail/elaboration commands
+async function handleDetailCommand(note, command) {
+    showStatus('Développement de l\'idée en cours...', 'processing');
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const updatedContent = note.content + '\n\n[DÉVELOPPEMENT DÉTAILLÉ]\n' +
+        'Après analyse approfondie, voici les points clés à considérer :\n' +
+        '1. Aspects techniques à examiner\n' +
+        '2. Implications pratiques et opérationnelles\n' +
+        '3. Ressources nécessaires et estimations de coût\n' +
+        '4. Calendrier proposé pour la mise en œuvre\n' +
+        '5. Risques potentiels et stratégies d\'atténuation\n' +
+        '\n*Cette analyse a été générée par l\'IA en fonction du contexte de votre note*';
+    
+    return {
+        content: updatedContent,
+        aiSuggestions: [
+            "Souhaitez-vous que je développe un point spécifique en particulier ?",
+            "Voulez-vous un plan d'action étape par étape ?",
+            "Avez-vous besoin d'une évaluation des risques plus détaillée ?"
+        ]
+    };
+}
+
+// Handle search/research commands
+async function handleSearchCommand(note, command) {
+    showStatus('Recherche d\'informations en cours...', 'processing');
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const updatedContent = note.content + '\n\n[INFORMATIONS COMPLÉMENTAIRES]\n' +
+        'Selon les dernières données disponibles :\n' +
+        '- Tendances du marché actuelles\n' +
+        '- Statistiques récentes pertinentes\n' +
+        '- Études de cas similaires\n' +
+        '- Ressources recommandées pour approfondir\n' +
+        '- Experts ou références à consulter\n' +
+        '\n*Ces informations sont fournies à titre indicatif et doivent être vérifiées*';
+    
+    return {
+        content: updatedContent,
+        aiSuggestions: [
+            "Souhaitez-vous que je me concentre sur un aspect particulier ?",
+            "Avez-vous besoin de sources plus spécifiques ou académiques ?",
+            "Voulez-vous une analyse comparative avec des solutions alternatives ?"
+        ]
+    };
+}
+
+// Handle generic AI commands
+async function handleGenericCommand(note, command) {
+    showStatus('Traitement de la commande générique...', 'processing');
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Simple response based on command keywords
+    let suggestionText = '';
+    if (command.toLowerCase().includes('améliore') || command.toLowerCase().includes('ameliorate')) {
+        suggestionText = 'Voici quelques suggestions pour améliorer votre note :\n' +
+            '1. Clarifier les points principaux\n' +
+            '2. Ajouter des exemples concrets\n' +
+            '3. Structurer avec des sous-sections\n' +
+            '4. Inclure une conclusion ou un appel à l\'action';
+    } else if (command.toLowerCase().includes('organise') || command.toLowerCase().includes('organize')) {
+        suggestionText = 'Pour mieux organiser votre note :\n' +
+            '1. Utilisez des titres et sous-titres clairs\n' +
+            '2. Groupez les idées liées\n' +
+            '3. Créez une hiérarchie logique\n' +
+            '4. Ajoutez une table des matières si longue';
+    } else {
+        suggestionText = 'Commande reçue : "' + command + '"\n' +
+            'L\'IA a analysé votre demande et voici ses suggestions :\n' +
+            '1. Précisez davantage ce que vous souhaitez accomplir\n' +
+            '2. Donnez plus de contexte sur l\'objectif final\n' +
+            '3. Specifiez le niveau de détail souhaité\n' +
+            '4. Indiquez si vous voulez des exemples ou des données spécifiques';
+    }
+    
+    return {
+        content: note.content,
+        aiSuggestions: suggestionText.split('\n').filter(line => line.trim() !== '')
+    };
+}
+
 // Load notes from localStorage
 function loadNotes() {
     try {
@@ -339,6 +542,32 @@ function updateUI() {
     const sortedNotes = [...notes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     
     container.innerHTML = sortedNotes.map(note => createNoteElement(note)).join('');
+    
+    // Add event listeners to command inputs and buttons
+    const commandInputs = container.querySelectorAll('.command-input');
+    const commandButtons = container.querySelectorAll('.command-btn');
+    
+    commandInputs.forEach((input, index) => {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                commandButtons[index].click();
+            }
+        });
+    });
+    
+    commandButtons.forEach((button, index) => {
+        button.addEventListener('click', () => {
+            const input = commandInputs[index];
+            const noteElement = button.closest('.note-item');
+            const noteId = noteElement.getAttribute('data-note-id');
+            const command = input.value.trim();
+            
+            if (command) {
+                processAICommand(noteId, command);
+                input.value = ''; // Clear input after processing
+            }
+        });
+    });
 }
 
 // Create note element
@@ -353,7 +582,7 @@ function createNoteElement(note) {
     });
     
     return `
-        <div class="note-item">
+        <div class="note-item" data-note-id="${note.id}">
             <div class="note-header">
                 <div class="note-title">${note.title}</div>
                 <div class="note-timestamp">${formattedDate}</div>
@@ -367,6 +596,10 @@ function createNoteElement(note) {
                     </ul>
                 </div>
             ` : ''}
+            <div class="note-commands">
+                <input type="text" placeholder="Commande pour l'IA (ex: ajoute les prix, détailler l'idée)..." class="command-input" />
+                <button class="btn btn-sm btn-outline command-btn">Exécuter</button>
+            </div>
         </div>
     `;
 }
