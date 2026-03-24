@@ -317,127 +317,7 @@
             60% { content: '...'; }
             80%, 100% { content: ''; }
         }
-    .note-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-        }
-
-        .note-commands {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            align-items: center;
-        }
-
-        .command-input {
-            flex: 1;
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-
-        .command-input:focus {
-            outline: none;
-            border-color: #4facfe;
-            box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
-        }
-
-        .command-btn {
-            padding: 10px 16px;
-            border: 1px solid #ddd;
-            background: white;
-            color: #333;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-
-        .command-btn:hover {
-            background: #f8f9fa;
-        }
-
-        .command-btn:active {
-            transform: scale(0.98);
-        }
-
-        .btn-sm {
-            padding: 8px 16px;
-            font-size: 0.9rem;
-        }
-
-        .btn-outline {
-            border: 1px solid #ddd;
-            background: white;
-            color: #333;
-        }
-
-        .btn-outline:hover {
-            background: #f8f9fa;
-        }
-
-        .note-item.selected {
-            border: 2px solid #4facfe;
-            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
-        }
-        
-        .note-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 10px;
-        }
-        
-        .tag {
-            background: #e8f4fd;
-            color: #2c3e50;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            border: 1px solid #bee3f8;
-        }
-        
-        .slash-menu {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            width: 300px;
-            max-height: 400px;
-            overflow-y: auto;
-            z-index: 1000;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            border: 1px solid #e9ecef;
-        }
-        
-        .slash-menu-header {
-            padding: 12px 16px;
-            border-bottom: 1px solid #eee;
-            font-weight: 600;
-            color: #2c3e50;
-            font-size: 1.1rem;
-        }
-        
-        .slash-menu-items {
-            padding: 8px 0;
-        }
-        
-        .slash-menu-item {
-            padding: 10px 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-        }
-        
-        .slash-menu-item:hover {
-            background-color: #f8f9fa;
-        }
-        
-        .slash-menu-item:active {
-            background-color: #e9ecef;
-        }
-</style>
+    </style>
 </head>
 <body>
     <div class="container">
@@ -462,16 +342,6 @@
                     <i class="fas fa-trash"></i>
                     Effacer les notes
                 </button>
-                
-                <button id="continuousToggle" class="btn btn-outline">
-                    <i class="fas fa-redo"></i>
-                    Écoute continue
-                </button>
-                
-                <div id="tag-input-container" style="margin-left: 15px; display: flex; align-items: center; gap: 8px;">
-                    <input type="text" id="tagInput" placeholder="Ajouter un tag..." style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; width: 180px;">
-                    <button id="addTagBtn" class="btn btn-outline" style="padding: 8px 12px; font-size: 0.9rem;">Ajouter Tag</button>
-                </div>
             </div>
             
             <div id="status" class="status">

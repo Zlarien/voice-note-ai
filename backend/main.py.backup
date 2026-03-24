@@ -50,14 +50,10 @@ class NoteBase(BaseModel):
     timestamp: str
     project_type: str
     ai_suggestions: List[str] = []
-    tags: List[str] = []
-    parent_id: Optional[str] = None
 
 class NoteCreate(BaseModel):
     content: str
     project_type: str
-    tags: List[str] = []
-    parent_id: Optional[str] = None
 
 class NoteResponse(BaseModel):
     id: str
@@ -66,8 +62,6 @@ class NoteResponse(BaseModel):
     timestamp: str
     project_type: str
     ai_suggestions: List[str] = []
-    tags: List[str] = []
-    parent_id: Optional[str] = None
 
 class AgentSuggestion(BaseModel):
     agent_name: str
@@ -234,173 +228,12 @@ async def text_to_speech(text: str) -> bytes:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Text-to-speech failed: {str(e)}")
 
-
-async def process_ai_command(note_content: str, command: str, project_type: str) -> dict:
-    """Process specific AI commands on note content."""
-    try:
-        command_lower = command.lower().strip()
-        
-        # Price-related commands
-        if any(keyword in command_lower for keyword in ['prix', 'price', 'coût', 'cost', 'tarif']):
-            # Check if it's clear enough to proceed
-            if any(keyword in command_lower for keyword in ['hygiène', 'hygiène', 'produit', 'savon', 'shampooing', 'dentifrice']):
-                # Add price information
-                updated_content = note_content + '\n\n[MISE À JOUR PRIX]\n' + \
-                    '- Savon: 2,50€\n' + \
-                    '- Shampooing: 4,80€\n' + \
-                    '- Dentifrice: 3,20€\n' + \
-                    '- Déodorant: 3,90€\n' + \
-                    '- Papier toilette: 2,80€\n' + \
-                    '*Prix indicatifs basée sur la moyenne du marché*'
-                
-                return {
-                    "content": updated_content,
-                    "suggestions": [
-                        "Vérifiez les prix actuels en magasin pour plus de précision",
-                        "Considérez les marques génériques pour économiser",
-                        "Regardez les promotions en cours"
-                    ]
-                }
-            else:
-                # Ask for clarification
-                return {
-                    "content": note_content,
-                    "suggestions": [
-                        "Pour ajouter des prix, pourriez-vous préciser :",
-                        "1. Quels types de produits exactement ?",
-                        "2. Voulez-vous des prix spécifiques ou des fourchettes ?",
-                        "3. Souhaitez-vous inclure des liens vers des produits en ligne ?"
-                    ]
-                }
-        
-        # Detail/elaboration commands
-        elif any(keyword in command_lower for keyword in ['détail', 'detail', 'développer', 'develop', 'élaborer', 'elaborate', 'approfondir']):
-            updated_content = note_content + '\n\n[DÉVELOPPEMENT DÉTAILLÉ]\n' + \
-                'Après analyse approfondie, voici les points clés à considérer :\n' + \
-                '1. Aspects techniques à examiner\n' + \
-                '2. Implications pratiques et opérationnelles\n' + \
-                '3. Ressources nécessaires et estimations de coût\n' + \
-                '4. Calendrier proposé pour la mise en œuvre\n' + \
-                '5. Risques potentiels et stratégies d\'atténuation\n' + \
-                '\n*Cette analyse a été générée par l\'IA en fonction du contexte de votre note*'
-            
-            return {
-                "content": updated_content,
-                "suggestions": [
-                    "Souhaitez-vous que je développe un point spécifique en particulier ?",
-                    "Voulez-vous un plan d'action étape par étape ?",
-                    "Avez-vous besoin d'une évaluation des risques plus détaillée ?"
-                ]
-            }
-        
-        # Search/research commands
-        elif any(keyword in command_lower for keyword in ['cherche', 'search', 'trouve', 'find', 'recherche', 'information', 'info']):
-            updated_content = note_content + '\n\n[INFORMATIONS COMPLÉMENTAIRES]\n' + \
-                'Selon les dernières données disponibles :\n' + \
-                '- Tendances du marché actuelles\n' + \
-                '- Statistiques récentes pertinentes\n' + \
-                '- Études de cas similaires\n' + \
-                '- Ressources recommandées pour approfondir\n' + \
-                '- Experts ou références à consulter\n' + \
-                '\n*Ces informations sont fournies à titre indicatif et doivent être vérifiées*'
-            
-            return {
-                "content": updated_content,
-                "suggestions": [
-                    "Souhaitez-vous que je me concentre sur un aspect particulier ?",
-                    "Avez-vous besoin de sources plus spécifiques ou académiques ?",
-                    "Voulez-vous une analyse comparative avec des solutions alternatives ?"
-                ]
-            }
-        
-        # Improvement commands
-        elif any(keyword in command_lower for keyword in ['améliore', 'ameliorate', 'améliorer', 'improve', 'better']):
-            suggestions_text = 'Voici quelques suggestions pour améliorer votre note :\n' + \
-                '1. Clarifier les points principaux\n' + \
-                '2. Ajouter des exemples concrets\n' + \
-                '3. Structurer avec des sous-sections\n' + \
-                '4. Inclure une conclusion ou un appel à l\'action'
-            
-            return {
-                "content": note_content,
-                "suggestions": suggestions_text.split('\n')
-            }
-        
-        # Organization commands
-        elif any(keyword in command_lower for keyword in ['organise', 'organize', 'organiser', 'structure', 'structurer']):
-            suggestions_text = 'Pour mieux organiser votre note :\n' + \
-                '1. Utilisez des titres et sous-titres clairs\n' + \
-                '2. Groupez les idées liées\n' + \
-                '3. Créez une hiérarchie logique\n' + \
-                '4. Ajoutez une table des matières si longue'
-            
-            return {
-                "content": note_content,
-                "suggestions": suggestions_text.split('\n')
-            }
-        
-        # Generic command handling
-        else:
-            # Use AI to understand and respond to the command
-            prompt = f"""Tu es un assistant IA expert en productivité et en analyse de notes. 
-            L'utilisateur a donné la commande suivante sur sa note : "{command}"
-            Ta note actuelle est : "{note_content}"
-            
-            Analyze the command and either:
-            1. Execute it directly if clear (modify the note content appropriately)
-            2. Ask for clarification if the request is ambiguous or needs more precision
-            3. Provide helpful suggestions for improvement
-            
-            Respond in French with either:
-            - Updated note content (if executing)
-            - Or a list of clarification questions/suggestions
-            """
-            
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": f"Note: {note_content}\nCommand: {command}"}
-                ],
-                max_tokens=300,
-                temperature=0.7
-            )
-            
-            ai_response = response.choices[0].message.content.strip()
-            
-            # Check if the AI wants to update the content or just give suggestions
-            if ai_response.startswith("NOTE_UPDATED:"):
-                # Extract the updated content
-                updated_content = ai_response[13:]  # Remove "NOTE_UPDATED:" prefix
-                return {
-                    "content": updated_content,
-                    "suggestions": ["La note a été mise à jour selon votre demande."]
-                }
-            else:
-                # Return as suggestions
-                return {
-                    "content": note_content,
-                    "suggestions": ai_response.split('\n')
-                }
-                
-    except Exception as e:
-        print(f"Error processing AI command: {e}")
-        # Fallback response
-        return {
-            "content": note_content,
-            "suggestions": [
-                "Désolé, je n'ai pas pu traiter votre commande en raison d'une erreur technique.",
-                "Pourriez-vous reformuler votre demande ou essayer à nouveau ?"
-            ]
-        }
-
 # API Endpoints
 @app.post("/transcribe")
 async def transcribe_endpoint(audio: UploadFile = File(...)):
     """Transcribe uploaded audio file to text."""
     transcript = await transcribe_audio(audio)
     return {"transcript": transcript}
-
 
 @app.post("/notes/", response_model=NoteResponse)
 async def create_note(note: NoteCreate):
@@ -422,9 +255,7 @@ async def create_note(note: NoteCreate):
             "content": note.content,
             "timestamp": timestamp,
             "project_type": note.project_type,
-            "ai_suggestions": suggestions,
-            "tags": note.tags,
-            "parent_id": note.parent_id
+            "ai_suggestions": suggestions
         }
         
         # Store note
@@ -484,35 +315,6 @@ async def speak_note(note_id: str):
         media_type="audio/mpeg",
         headers={"Content-Disposition": f"attachment; filename=note_{note_id}.mp3"}
     )
-
-
-@app.post("/notes/{note_id}/command")
-async def process_note_command(note_id: str, command: dict):
-    """Process a specific AI command on a note."""
-    if note_id not in notes_db:
-        raise HTTPException(status_code=404, detail="Note not found")
-    
-    note = notes_db[note_id]
-    command_text = command.get("command", "")
-    
-    if not command_text.strip():
-        raise HTTPException(status_code=400, detail="Command cannot be empty")
-    
-    # Process the command with AI
-    result = await process_ai_command(note["content"], command_text, note["project_type"])
-    
-    # Update the note if content was modified
-    if "content" in result and result["content"] != note["content"]:
-        note["content"] = result["content"]
-        # Note: In a real app, you might want to keep version history
-        notes_db[note_id] = note
-    
-    return {
-        "note_id": note_id,
-        "updated_content": note["content"],
-        "suggestions": result.get("suggestions", []),
-        "command_processed": command_text
-    }
 
 @app.get("/health")
 async def health_check():

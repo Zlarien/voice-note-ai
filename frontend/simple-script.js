@@ -1,4 +1,4 @@
-// Simplified Voice Note AI Frontend - Demo Version with Continuous Listening
+// Enhanced Voice Note AI Frontend - Demo Version with Continuous Listening, Block System, and Notion-like Features
 
 // State
 let recognition;
@@ -7,12 +7,17 @@ let isContinuous = false;
 let notes = [];
 let continuousTimeout = null;
 let continuousTranscript = '';
+let selectedNoteId = null;
+let isSlashMenuOpen = false;
+let slashMenuElement = null;
 
 // Initialize when DOM loads
 document.addEventListener('DOMContentLoaded', () => {
     initializeSpeechRecognition();
     loadNotes();
     updateUI();
+    initializeTagInput();
+    initializeSlashCommand();
 });
 
 // Initialize speech recognition
@@ -543,6 +548,19 @@ function updateUI() {
     
     container.innerHTML = sortedNotes.map(note => createNoteElement(note)).join('');
     
+    // Add event listeners for note selection
+    const noteItems = container.querySelectorAll('.note-item');
+    noteItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // Deselect all items
+            container.querySelectorAll('.note-item').forEach(i => i.classList.remove('selected'));
+            // Select this item
+            item.classList.add('selected');
+            // Update selectedNoteId
+            selectedNoteId = item.getAttribute('data-note-id');
+        });
+    });
+    
     // Add event listeners to command inputs and buttons
     const commandInputs = container.querySelectorAll('.command-input');
     const commandButtons = container.querySelectorAll('.command-btn');
@@ -596,10 +614,163 @@ function createNoteElement(note) {
                     </ul>
                 </div>
             ` : ''}
+            <div class="note-tags">
+                ${note.tags && note.tags.length > 0 ? `
+                    <div class="tags-container">
+                        ${note.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    </div>
+                ` : ''}
+            </div>
             <div class="note-commands">
                 <input type="text" placeholder="Commande pour l'IA (ex: ajoute les prix, détailler l'idée)..." class="command-input" />
                 <button class="btn btn-sm btn-outline command-btn">Exécuter</button>
             </div>
         </div>
     `;
+}
+
+// Initialize tag input functionality
+function initializeTagInput() {
+    const tagInput = document.getElementById('tagInput');
+    const addTagBtn = document.getElementById('addTagBtn');
+    
+    if (!tagInput || !addTagBtn) return;
+    
+    addTagBtn.addEventListener('click', () => {
+        const tag = tagInput.value.trim();
+        if (tag) {
+            addTagToSelectedNote(tag);
+            tagInput.value = '';
+        }
+    });
+    
+    tagInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const tag = tagInput.value.trim();
+            if (tag) {
+                addTagToSelectedNote(tag);
+                tagInput.value = '';
+            }
+        }
+    });
+}
+
+// Add tag to currently selected note
+function addTagToSelectedNote(tag) {
+    if (!selectedNoteId) {
+        showStatus('Veuillez sélectionner une note d\'abord', 'processing');
+        setTimeout(() => hideStatus(), 1500);
+        return;
+    }
+    
+    const noteIndex = notes.findIndex(n => n.id === selectedNoteId);
+    if (noteIndex === -1) return;
+    
+    // Avoid duplicate tags
+    if (!notes[noteIndex].tags.includes(tag)) {
+        notes[noteIndex].tags.push(tag);
+        saveNotes();
+        updateUI();
+        showStatus(`Tag "${tag}" ajouté`, 'processing');
+        setTimeout(() => hideStatus(), 1500);
+    }
+}
+
+// Initialize slash command functionality
+function initializeSlashCommand() {
+    document.addEventListener('keydown', (e) => {
+        // Check if we're typing in a note content area (simplified)
+        // In a real app, we'd target specific editable elements
+        if (e.key === '/' && !isSlashMenuOpen && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            e.preventDefault();
+            openSlashMenu();
+        }
+        // Escape to close menu
+        if (e.key === 'Escape' && isSlashMenuOpen) {
+            closeSlashMenu();
+        }
+    });
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (isSlashMenuOpen && !slashMenuElement.contains(e.target)) {
+            closeSlashMenu();
+        }
+    });
+}
+
+// Open slash command menu
+function openSlashMenu() {
+    isSlashMenuOpen = true;
+    
+    // Create menu element if not exists
+    if (!slashMenuElement) {
+        slashMenuElement = document.createElement('div');
+        slashMenuElement.className = 'slash-menu';
+        slashMenuElement.innerHTML = `
+            <div class="slash-menu-header">Commandes rapides (/)</div>
+            <div class="slash-menu-items">
+                <div class="slash-menu-item" data-command="/prix">Ajouter les prix</div>
+                <div class="slash-menu-item" data-command="/detail">Développer l'idée</div>
+                <div class="slash-menu-item" data-command="/cherche">Rechercher des infos</div>
+                <div class="slash-menu-item" data-command="/améliore">Améliorer la note</div>
+                <div class="slash-menu-item" data-command="/organise">Organiser la note</div>
+            </div>
+        `;
+        
+        // Style the menu
+        slashMenuElement.style.cssText = `
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        `;
+        
+        document.body.appendChild(slashMenuElement);
+        
+        // Add event listeners to menu items
+        const items = slashMenuElement.querySelectorAll('.slash-menu-item');
+        items.forEach(item => {
+            item.addEventListener('click', () => {
+                const command = item.getAttribute('data-command');
+                if (selectedNoteId) {
+                    // Remove the slash and execute command
+                    const cleanCommand = command.substring(1);
+                    processAICommand(selectedNoteId, cleanCommand);
+                }
+                closeSlashMenu();
+            });
+            
+            // Hover effect
+            item.addEventListener('mouseenter', () => {
+                item.style.backgroundColor = '#f8f9fa';
+            });
+            item.addEventListener('mouseleave', () => {
+                item.style.backgroundColor = 'transparent';
+            });
+        });
+    } else {
+        slashMenuElement.style.display = 'block';
+    }
+    
+    // Position near cursor (simplified - in real app would be at cursor position)
+    slashMenuElement.style.top = '100px';
+    slashMenuElement.style.left = '50%';
+    slashMenuElement.style.transform = 'translateX(-50%)';
+}
+
+// Close slash command menu
+function closeSlashMenu() {
+    isSlashMenuOpen = false;
+    if (slashMenuElement) {
+        slashMenuElement.style.display = 'none';
+    }
 }
