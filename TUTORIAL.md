@@ -74,6 +74,23 @@ Each note now has a command bar where you can give specific instructions to the 
    - Ask for clarification if the request is ambiguous
 4. You can continue refining with follow-up commands
 
+### Using Tags for Organization
+1. Select a note by clicking on it (it will be highlighted)
+2. In the voice controls section, use the "Ajouter un tag..." input field to type a tag
+3. Press Enter or click the "Ajouter Tag" button to add the tag to the selected note
+4. Tags will appear under the note content and can be used for filtering and organization
+
+### Using Slash Commands (/) 
+1. Click anywhere in a note's content area to focus on it
+2. Type "/" to open the quick command menu
+3. Select from the available options:
+   - `/prix` : Add price estimates for products mentioned
+   - `/detail` : Develop and elaborate on the main idea
+   - `/cherche` : Search for and add relevant information
+   - `/améliore` : Get general improvement suggestions
+   - `/organise` : Get organization and structuring advice
+4. The selected command will be executed on the currently selected note
+
 ### Listening to Your Notes
 1. Click the "Écouter la note" button (volume icon) on any note card
 2. The AI will read your note aloud using text-to-speech
@@ -119,6 +136,14 @@ Each note now has a command bar where you can give specific instructions to the 
 - The system requires microphone permissions to be granted
 - In continuous mode, notes are created after pauses in speech (2 seconds of silence)
 
+### Tag system not working
+- Make sure you've selected a note first (it should be highlighted)
+- Tags can only be added to selected notes
+
+### Slash commands not working
+- Click in a note's content area first to focus on it
+- Then type "/" to open the command menu
+
 ## How It Works
 
 ### Voice Recognition
@@ -128,10 +153,11 @@ Each note now has a command bar where you can give specific instructions to the 
 
 ### AI Processing
 - Transcription: OpenAI Whisper model for high-accuracy speech-to-text
-- Analysis: GPT-4o-mini for contextual understanding and suggestions
+- Analysis and suggestions: GPT-4o-mini for contextual understanding and relevant suggestions
 - Multi-Agent System: Five specialized AI agents work in parallel to provide diverse perspectives
 - Text-to-Speech: OpenAI TTS for natural-sounding audio output
 - Command Processing: Specialized handlers for price addition, elaboration, research, and general commands
+- Tag System: Simple metadata system for organizing and filtering notes
 
 ### Data Privacy
 - Voice recordings are processed in real-time and not stored
