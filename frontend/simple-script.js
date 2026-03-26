@@ -35,6 +35,7 @@ function bindElements() {
   els.propDate = document.getElementById('propDate');
   els.propType = document.getElementById('propType');
   els.editor = document.getElementById('editor');
+  els.dataView = document.getElementById('dataView');
   els.statusText = document.getElementById('statusText');
   els.proposal = document.getElementById('proposal');
   els.proposalDiff = document.getElementById('proposalDiff');
@@ -55,6 +56,7 @@ function wireEvents() {
       currentView = btn.dataset.view;
       document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b === btn));
       setStatus(`Vue: ${btn.textContent}`);
+      renderDataView();
     });
   });
 
@@ -123,6 +125,7 @@ function renderAll() {
   renderTree();
   renderBreadcrumb();
   renderEditorPage();
+  renderDataView();
 }
 
 function renderTree() {
@@ -214,6 +217,81 @@ function renderEditorPage() {
 
   els.editor.innerHTML = p.blocks.map(block => renderBlock(block)).join('');
   wireBlockEvents(p);
+}
+
+function renderDataView() {
+  if (!els.dataView) return;
+
+  if (currentView === 'list') {
+    els.dataView.innerHTML = '<div class="search-hint">Vue liste active: navigation arborescente via la sidebar.</div>';
+    return;
+  }
+
+  if (currentView === 'table') {
+    const rows = pages
+      .map(p => `
+        <tr data-id="${p.id}">
+          <td>${escapeHtml(p.title)}</td>
+          <td>${escapeHtml(p.properties.status || 'idea')}</td>
+          <td>${escapeHtml((p.properties.tags || []).join(', '))}</td>
+          <td>${escapeHtml(p.properties.date || '')}</td>
+          <td>${escapeHtml(p.properties.type || 'general')}</td>
+        </tr>
+      `)
+      .join('');
+
+    els.dataView.innerHTML = `
+      <div class="table-wrap">
+        <table class="workspace-table">
+          <thead>
+            <tr>
+              <th>Titre</th>
+              <th>Statut</th>
+              <th>Tags</th>
+              <th>Date</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+
+    els.dataView.querySelectorAll('tr[data-id]').forEach(row => {
+      row.addEventListener('click', () => {
+        selectedPageId = row.dataset.id;
+        saveState();
+        renderAll();
+      });
+    });
+    return;
+  }
+
+  const columns = [
+    { key: 'idea', label: 'Idée' },
+    { key: 'in_progress', label: 'En cours' },
+    { key: 'done', label: 'Terminé' },
+  ];
+
+  els.dataView.innerHTML = `
+    <div class="kanban">
+      ${columns.map(col => {
+        const cards = pages
+          .filter(p => (p.properties.status || 'idea') === col.key)
+          .map(p => `<div class="kanban-card" data-id="${p.id}">${escapeHtml(p.title)}</div>`)
+          .join('') || '<div class="search-hint">Aucune page</div>';
+        return `<div class="kanban-col"><h5>${col.label}</h5>${cards}</div>`;
+      }).join('')}
+    </div>
+  `;
+
+  els.dataView.querySelectorAll('.kanban-card').forEach(card => {
+    card.addEventListener('click', () => {
+      selectedPageId = card.dataset.id;
+      saveState();
+      renderAll();
+    });
+  });
 }
 
 function renderBlock(block) {
@@ -561,18 +639,39 @@ function handleVoiceCommand(transcript) {
   const low = transcript.toLowerCase();
 
   if (low.includes('ajoute les prix') || low.includes('produits d’hygiène') || low.includes("produits d'hygiène")) {
-    const target = findPageBySemanticHint(['hygiene', 'hygiène', 'produits', 'prix']);
-    if (!target) {
+    const result = findPagesBySemanticHint(['hygiene', 'hygiène', 'produits', 'prix']);
+    if (result.matches.length === 0) {
       setStatus('Aucune note cible trouvée');
       return;
     }
 
-    const patch = `\n+ Prix estimés:\n+ - Savon: 2,50€\n+ - Shampooing: 4,80€\n+ - Dentifrice: 3,20€`;
+    if (result.ambiguous) {
+      pendingProposal = {
+        pageId: null,
+        action: 'clarify_target',
+        payload: '',
+        blockDiffs: [],
+        detail: `Plusieurs notes possibles:\n${result.matches.slice(0, 4).map((m, i) => `${i + 1}. ${m.page.title} (score ${m.score})`).join('\n')}\n\nPrécisez la note cible dans le champ ci-dessous.`
+      };
+      openProposal();
+      return;
+    }
+
+    const target = result.matches[0].page;
+
+    const patch = `Prix estimés:\n- Savon: 2,50€\n- Shampooing: 4,80€\n- Dentifrice: 3,20€`;
+    const oldPreview = target.blocks.map(b => b.content).join('\n').slice(0, 240);
+    const newPreview = `${oldPreview}\n${patch}`.slice(0, 320);
     pendingProposal = {
       pageId: target.id,
       action: 'append',
       payload: patch,
-      detail: `Page ciblée: ${target.title}\nDiff:\n${patch}`
+      blockDiffs: [{
+        blockType: 'paragraph',
+        before: oldPreview,
+        after: newPreview
+      }],
+      detail: `Page ciblée: ${target.title}`
     };
     openProposal();
     return;
@@ -620,24 +719,41 @@ function proposeAI(kind) {
     pageId: p.id,
     action: 'append',
     payload,
-    detail: `Page ciblée: ${p.title}\nDiff:\n${payload}`
+    blockDiffs: [{
+      blockType: 'paragraph',
+      before: p.blocks.map(b => b.content).join('\n').slice(0, 220),
+      after: `${p.blocks.map(b => b.content).join('\n')}\n${payload}`.slice(0, 320)
+    }],
+    detail: `Page ciblée: ${p.title}`
   };
   openProposal();
 }
 
-function findPageBySemanticHint(hints) {
+function findPagesBySemanticHint(hints) {
   const scored = pages.map(p => {
     const bag = `${p.title} ${(p.properties.tags || []).join(' ')} ${p.blocks.map(b => b.content).join(' ')}`.toLowerCase();
     const score = hints.reduce((acc, h) => acc + (bag.includes(h) ? 1 : 0), 0);
     return { p, score };
-  }).sort((a, b) => b.score - a.score);
+  })
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(x => ({ page: x.p, score: x.score }));
 
-  return scored[0] && scored[0].score > 0 ? scored[0].p : null;
+  if (scored.length === 0) return { matches: [], ambiguous: false };
+  const ambiguous = scored.length > 1 && scored[0].score === scored[1].score;
+  return { matches: scored, ambiguous };
 }
 
 function openProposal() {
   if (!pendingProposal) return;
-  els.proposalDiff.textContent = pendingProposal.detail;
+  if (Array.isArray(pendingProposal.blockDiffs) && pendingProposal.blockDiffs.length > 0) {
+    const parts = pendingProposal.blockDiffs.map((d, i) => {
+      return `Bloc ${i + 1} (${d.blockType})\n--- avant ---\n${d.before || ''}\n--- après ---\n${d.after || ''}`;
+    }).join('\n\n');
+    els.proposalDiff.textContent = `${pendingProposal.detail}\n\n${parts}`;
+  } else {
+    els.proposalDiff.textContent = pendingProposal.detail;
+  }
   els.proposal.classList.add('visible');
   setStatus('Proposition IA prête — validation requise');
 }
@@ -649,11 +765,16 @@ function closeProposal() {
 
 function applyProposal() {
   if (!pendingProposal) return;
+  if (pendingProposal.action === 'clarify_target') {
+    setStatus('Précisez la note cible puis validez à nouveau');
+    return;
+  }
+
   const page = findPageById(pendingProposal.pageId);
   if (!page) return;
 
   if (pendingProposal.action === 'append') {
-    page.blocks.push(newBlock('paragraph', pendingProposal.payload.replace(/^\n\+\s?/gm, '').trim()));
+    page.blocks.push(newBlock('paragraph', pendingProposal.payload.replace(/^\+\s?/gm, '').trim()));
   }
 
   page.updatedAt = new Date().toISOString();
@@ -674,6 +795,29 @@ function onClarifyEnter(e) {
   if (e.key !== 'Enter') return;
   const msg = els.clarifyInput.value.trim();
   if (!msg || !pendingProposal) return;
+
+  if (pendingProposal.action === 'clarify_target') {
+    const result = findPagesBySemanticHint(msg.toLowerCase().split(/\s+/).filter(Boolean));
+    if (result.matches.length === 0) {
+      setStatus('Aucune note trouvée avec cette précision');
+      return;
+    }
+    const target = result.matches[0].page;
+    pendingProposal = {
+      pageId: target.id,
+      action: 'append',
+      payload: `Ajout IA après précision: ${msg}`,
+      blockDiffs: [{
+        blockType: 'paragraph',
+        before: target.blocks.map(b => b.content).join('\n').slice(0, 220),
+        after: `${target.blocks.map(b => b.content).join('\n')}\nAjout IA après précision: ${msg}`.slice(0, 320)
+      }],
+      detail: `Note cible précisée: ${target.title}`
+    };
+    openProposal();
+    els.clarifyInput.value = '';
+    return;
+  }
 
   pendingProposal.detail += `\n\nPrécision: ${msg}\nNouvelle version:\n${pendingProposal.payload}\n+ (ajustée selon précision)`;
   els.proposalDiff.textContent = pendingProposal.detail;
